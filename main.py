@@ -8,10 +8,9 @@ from kivy.graphics import Ellipse
 from kivy.core.window import Window
 from kivy.clock import Clock
 import random
-import kivy_gradient
-import pandas as pd
 import math
 import os
+import kivy
 import PIL
 from PIL import Image
 from kivy.core.image import Image as CoreImage
@@ -84,18 +83,17 @@ class TheLabApp(App):
         if Window.focus:
             # Get the mouse position using Kivy's Window module
             self.mos_pos = Window.mouse_pos
+            # Adjust for pixel density
+            self.mos_pos = (self.mos_pos[0]*kivy.metrics.dp(1), self.mos_pos[1]*kivy.metrics.dp(1))
             self.set_circle_scale(self.main_layout)
 
     def update_circles(self):
         self.main_layout.clear_widgets()
 
         full_res_images_dir = os.path.dirname(os.path.abspath(__file__)) + "//Full_Res_Memories"
-        #full_res_images_dir = "F://Circle_Texture_Test"
-        print(full_res_images_dir)
 
         for i in range(self.memory_count):
             if len(os.listdir(full_res_images_dir)) > i:
-                print(os.listdir(full_res_images_dir)[i])
                 image = Image.open(full_res_images_dir + "//" + os.listdir(full_res_images_dir)[i])
                 image = image_to_texture(image)
             else:
@@ -106,6 +104,7 @@ class TheLabApp(App):
             self.main_layout.add_widget(circle_widget)
 
     def set_circle_scale(self, layout):
+        i = 0
         for circle in layout.children:
             widget_pos = get_widget_position(circle)
 
@@ -119,6 +118,7 @@ class TheLabApp(App):
             radius = 1/distance_to_circle
             radius *= 0.02
             circle.update_circle_size(radius)
+            i += 1
 
 
 if __name__ == '__main__':
