@@ -75,6 +75,12 @@ class CircleWidget(Widget):
         self.circle_size = new_size
         self.on_size()
 
+    def move_above(self):
+        # Move widget above the other widgets in a parent. WIP function
+
+        # Increase the index of above_button to move it above the circles
+        self.circle.index += 1
+
 
 class TheLabApp(App):
 
@@ -87,9 +93,13 @@ class TheLabApp(App):
         generate_image_previews()
         self.update_circles()
 
-        Clock.schedule_interval(self.update_mouse_pos, 0.1)
+        Clock.schedule_interval(self.update(), 0.1)
 
         return self.main_layout
+
+    def update(self):
+        self.update_mouse_pos()
+        self.set_circle_scale(self.main_layout)
 
     def update_mouse_pos(self, *args):
         if Window.focus:
@@ -97,7 +107,6 @@ class TheLabApp(App):
             self.mos_pos = Window.mouse_pos
             # Adjust for pixel density
             self.mos_pos = (self.mos_pos[0] * kivy.metrics.dp(1), self.mos_pos[1] * kivy.metrics.dp(1))
-            self.set_circle_scale(self.main_layout)
 
     def update_circles(self):
         self.main_layout.clear_widgets()
@@ -117,10 +126,15 @@ class TheLabApp(App):
 
     def set_circle_scale(self, layout):
         i = 0
+        biggest_circle = None
+        closest_distance = math.inf
+
         for circle in layout.children:
             widget_pos = get_widget_position(circle)
 
             distance_to_circle = math.dist(widget_pos, self.mos_pos)
+            if distance_to_circle < closest_distance:
+                biggest_circle = circle
 
             window_scaling_factor = Window.height + Window.width
 
