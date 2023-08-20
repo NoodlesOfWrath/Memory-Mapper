@@ -163,9 +163,12 @@ class TheLabApp(App):
     def move_circle_above(self, circle):
         index = circle.parent.children.index(circle)
         new_circle = CircleWidget(circle_size=circle.circle_size, circle_image=circle.circle.texture)
-        self.grid_layer_two.clear_widgets()
-        for i in range((self.main_layout.cols * self.main_layout.rows)-1):
-            self.grid_layer_two.add_widget(SpacerWidget())
+        for child in self.grid_layer_two.children:
+            if isinstance(child, CircleWidget):
+                self.grid_layer_two.remove_widget(child)
+        if len(self.grid_layer_two.children) == 0:
+            for i in range((self.main_layout.cols * self.main_layout.rows)-1):
+                self.grid_layer_two.add_widget(SpacerWidget())
         self.grid_layer_two.add_widget(new_circle, index=index)
 
 
