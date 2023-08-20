@@ -1,5 +1,11 @@
+import copy
+
 from kivy.app import App
 from kivy.uix.gridlayout import GridLayout
+from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.floatlayout import FloatLayout
+from kivy.uix.relativelayout import RelativeLayout
+from kivy.uix.button import Button
 from kivy.uix.widget import Widget
 from kivy.uix.label import Label
 from kivy.graphics import Ellipse
@@ -75,29 +81,36 @@ class CircleWidget(Widget):
         self.circle_size = new_size
         self.on_size()
 
-    def move_above(self):
-        # Move widget above the other widgets in a parent. WIP function
 
-        # Increase the index of above_button to move it above the circles
-        self.circle.index += 1
+class SpacerWidget(Widget):
+    pass
 
 
 class TheLabApp(App):
 
     def build(self):
-        self.main_layout = GridLayout(cols=20, rows=12, spacing=10)
+        # Create the main layout
+        relative_layout = RelativeLayout()
+        cols = 20
+        rows = 12
+        spacing = 10
+        self.main_layout = GridLayout(cols=cols, rows=rows, spacing=spacing)
+        relative_layout.add_widget(self.main_layout)
+        self.grid_layer_two = GridLayout(cols=cols, rows=rows, spacing=spacing)
+        relative_layout.add_widget(self.grid_layer_two)
+
         self.mos_pos = ()
         self.memory_count = 240
 
         # Generate previews for all memories and cache them (if not done already)
         generate_image_previews()
-        self.update_circles()
+        self.draw_circles()
 
-        Clock.schedule_interval(self.update(), 0.1)
+        Clock.schedule_interval(self.update, 0.016666)
 
-        return self.main_layout
+        return relative_layout
 
-    def update(self):
+    def update(self, *args):
         self.update_mouse_pos()
         self.set_circle_scale(self.main_layout)
 
@@ -108,7 +121,7 @@ class TheLabApp(App):
             # Adjust for pixel density
             self.mos_pos = (self.mos_pos[0] * kivy.metrics.dp(1), self.mos_pos[1] * kivy.metrics.dp(1))
 
-    def update_circles(self):
+    def draw_circles(self):
         self.main_layout.clear_widgets()
 
         memory_thumbnail_folder = os.path.dirname(os.path.abspath(__file__)) + "//Memory_Thumbnails"
@@ -122,21 +135,19 @@ class TheLabApp(App):
                 image = None
 
             circle_widget = CircleWidget(circle_size=0.05, circle_image=image)
-            self.main_layout.add_widget(circle_widget)
+            with self.main_layout.canvas.after:
+                self.main_layout.add_widget(circle_widget, i)
 
     def set_circle_scale(self, layout):
-        i = 0
         biggest_circle = None
-        closest_distance = math.inf
+        biggest_radius = 0
 
         for circle in layout.children:
             widget_pos = get_widget_position(circle)
 
             distance_to_circle = math.dist(widget_pos, self.mos_pos)
-            if distance_to_circle < closest_distance:
-                biggest_circle = circle
 
-            window_scaling_factor = Window.height + Window.width
+            window_scaling_factor = min(Window.height, Window.width)*2
 
             # Ensure the input value is within the specified range
             distance_to_circle = max(window_scaling_factor / 100, min(distance_to_circle, window_scaling_factor / 2))
@@ -144,7 +155,18 @@ class TheLabApp(App):
             radius = 1 / distance_to_circle
             radius *= 0.02
             circle.update_circle_size(radius)
-            i += 1
+            if radius > biggest_radius:
+                biggest_radius = radius
+                biggest_circle = circle
+        self.move_circle_above(biggest_circle)
+
+    def move_circle_above(self, circle):
+        index = circle.parent.children.index(circle)
+        new_circle = CircleWidget(circle_size=circle.circle_size, circle_image=circle.circle.texture)
+        self.grid_layer_two.clear_widgets()
+        for i in range((self.main_layout.cols * self.main_layout.rows)-1):
+            self.grid_layer_two.add_widget(SpacerWidget())
+        self.grid_layer_two.add_widget(new_circle, index=index)
 
 
 if __name__ == '__main__':
