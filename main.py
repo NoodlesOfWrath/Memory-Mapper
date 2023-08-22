@@ -162,6 +162,8 @@ class TheLabApp(App):
             distance_to_circle = math.dist(widget_pos, self.mos_pos)
 
             window_scaling_factor = min(Window.height, Window.width)*2
+            if window_scaling_factor == 0:
+                window_scaling_factor = 1
 
             # Ensure the input value is within the specified range
             distance_to_circle = max(window_scaling_factor / 100, min(distance_to_circle, window_scaling_factor / 2))
