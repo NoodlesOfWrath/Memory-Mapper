@@ -1,16 +1,18 @@
 import copy
-
+import keyboard
 from kivy.app import App
 from kivy.uix.gridlayout import GridLayout
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.relativelayout import RelativeLayout
 from kivy.uix.button import Button
+from kivy.uix.image import Image as KivyImage
 from kivy.uix.widget import Widget
 from kivy.uix.label import Label
 from kivy.graphics import Ellipse
 from kivy.core.window import Window
 from kivy.clock import Clock
+from kivy.config import Config
 import math
 import os
 import kivy
@@ -89,15 +91,19 @@ class SpacerWidget(Widget):
 class TheLabApp(App):
 
     def build(self):
+        # Disables esc exiting the program
+        Config.set('kivy', 'exit_on_escape', '0')
         # Create the main layout
-        relative_layout = RelativeLayout()
+        self.main_layout = RelativeLayout()
         cols = 20
         rows = 12
         spacing = 10
-        self.main_layout = GridLayout(cols=cols, rows=rows, spacing=spacing)
-        relative_layout.add_widget(self.main_layout)
+        self.grid_layer_one = GridLayout(cols=cols, rows=rows, spacing=spacing)
+        self.main_layout.add_widget(self.grid_layer_one)
         self.grid_layer_two = GridLayout(cols=cols, rows=rows, spacing=spacing)
-        relative_layout.add_widget(self.grid_layer_two)
+        self.main_layout.add_widget(self.grid_layer_two)
+        self.transparent_button_layout = GridLayout(cols=cols, rows=rows, spacing=spacing)
+        self.main_layout.add_widget(self.transparent_button_layout)
 
         self.mos_pos = ()
         self.memory_count = 240
@@ -108,11 +114,13 @@ class TheLabApp(App):
 
         Clock.schedule_interval(self.update, 0.016666)
 
-        return relative_layout
+        return self.main_layout
 
     def update(self, *args):
         self.update_mouse_pos()
-        self.set_circle_scale(self.main_layout)
+        self.set_circle_scale(self.grid_layer_one)
+        if keyboard.is_pressed('esc'):
+            self.escape_full_screen_image()
 
     def update_mouse_pos(self, *args):
         if Window.focus:
@@ -122,21 +130,27 @@ class TheLabApp(App):
             self.mos_pos = (self.mos_pos[0] * kivy.metrics.dp(1), self.mos_pos[1] * kivy.metrics.dp(1))
 
     def draw_circles(self):
-        self.main_layout.clear_widgets()
+        self.grid_layer_one.clear_widgets()
 
         memory_thumbnail_folder = os.path.dirname(os.path.abspath(__file__)) + "//Memory_Thumbnails"
 
         for i in range(self.memory_count):
             if len(os.listdir(memory_thumbnail_folder)) > i:
-                image = Image.open(memory_thumbnail_folder + "//" + os.listdir(memory_thumbnail_folder)[i])
+                image_dir = memory_thumbnail_folder + "//" + os.listdir(memory_thumbnail_folder)[i]
+                image = Image.open(image_dir)
                 image = image_to_texture(image)
             else:
                 print("no images found...")
                 image = None
+                return
 
             circle_widget = CircleWidget(circle_size=0.05, circle_image=image)
-            with self.main_layout.canvas.after:
-                self.main_layout.add_widget(circle_widget, i)
+            with self.grid_layer_one.canvas.after:
+                self.grid_layer_one.add_widget(circle_widget, i)
+            image_name = os.listdir(memory_thumbnail_folder)[i]
+            new_var = image_name
+            circle_button = Button(background_color=(1, 0, 0, 0), on_press=lambda x, y=new_var: self.make_circle_full_screen(y))
+            self.transparent_button_layout.add_widget(circle_button, i)
 
     def set_circle_scale(self, layout):
         biggest_circle = None
@@ -167,9 +181,21 @@ class TheLabApp(App):
             if isinstance(child, CircleWidget):
                 self.grid_layer_two.remove_widget(child)
         if len(self.grid_layer_two.children) == 0:
-            for i in range((self.main_layout.cols * self.main_layout.rows)-1):
+            for i in range((self.grid_layer_one.cols * self.grid_layer_one.rows) - 1):
                 self.grid_layer_two.add_widget(SpacerWidget())
         self.grid_layer_two.add_widget(new_circle, index=index)
+
+    def make_circle_full_screen(self, image_name):
+        self.escape_full_screen_image()
+        full_res_images_dir = os.path.dirname(os.path.abspath(__file__)) + "//Full_Res_Memories"
+        image_dir = full_res_images_dir + "//" + image_name
+        image_widget = KivyImage(source=image_dir, fit_mode="contain")
+        self.main_layout.add_widget(image_widget)
+
+    def escape_full_screen_image(self):
+        for widget in self.main_layout.children:
+            if isinstance(widget, KivyImage):
+                self.main_layout.remove_widget(widget)
 
 
 if __name__ == '__main__':
