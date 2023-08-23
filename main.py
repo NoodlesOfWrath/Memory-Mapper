@@ -1,9 +1,13 @@
 import copy
+import random
+
 import keyboard
 from kivy.app import App
 from kivy.uix.gridlayout import GridLayout
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.floatlayout import FloatLayout
+from kivy.uix.stencilview import StencilView
+from kivy.animation import Animation
 from kivy.uix.relativelayout import RelativeLayout
 from kivy.uix.button import Button
 from kivy.uix.image import Image as KivyImage
@@ -91,6 +95,8 @@ class SpacerWidget(Widget):
 class TheLabApp(App):
 
     def build(self):
+        self.fullscreen = False
+
         # Disables esc exiting the program
         Config.set('kivy', 'exit_on_escape', '0')
         # Create the main layout
@@ -117,9 +123,10 @@ class TheLabApp(App):
         return self.main_layout
 
     def update(self, *args):
-        self.update_mouse_pos()
-        self.set_circle_scale(self.grid_layer_one)
-        if keyboard.is_pressed('esc'):
+        if not self.fullscreen:
+            self.update_mouse_pos()
+            self.set_circle_scale(self.grid_layer_one)
+        if keyboard.is_pressed('esc') & self.fullscreen:
             self.escape_full_screen_image()
 
     def update_mouse_pos(self, *args):
@@ -166,10 +173,10 @@ class TheLabApp(App):
                 window_scaling_factor = 1
 
             # Ensure the input value is within the specified range
-            distance_to_circle = max(window_scaling_factor / 100, min(distance_to_circle, window_scaling_factor / 2))
+            distance_to_circle = max(window_scaling_factor / 50, min(distance_to_circle, window_scaling_factor / 2))
             distance_to_circle /= window_scaling_factor
             radius = 1 / distance_to_circle
-            radius *= 0.02
+            radius *= 0.04
             circle.update_circle_size(radius)
             if radius > biggest_radius:
                 biggest_radius = radius
@@ -188,13 +195,16 @@ class TheLabApp(App):
         self.grid_layer_two.add_widget(new_circle, index=index)
 
     def make_circle_full_screen(self, image_name):
-        self.escape_full_screen_image()
-        full_res_images_dir = os.path.dirname(os.path.abspath(__file__)) + "//Full_Res_Memories"
-        image_dir = full_res_images_dir + "//" + image_name
-        image_widget = KivyImage(source=image_dir, fit_mode="contain")
-        self.main_layout.add_widget(image_widget)
+        if not self.fullscreen:
+            self.escape_full_screen_image()
+            self.fullscreen = True
+            full_res_images_dir = os.path.dirname(os.path.abspath(__file__)) + "//Full_Res_Memories"
+            image_dir = full_res_images_dir + "//" + image_name
+            image_widget = KivyImage(source=image_dir, fit_mode="contain")
+            self.main_layout.add_widget(image_widget)
 
     def escape_full_screen_image(self):
+        self.fullscreen = False
         for widget in self.main_layout.children:
             if isinstance(widget, KivyImage):
                 self.main_layout.remove_widget(widget)
