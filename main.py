@@ -112,7 +112,7 @@ class TheLabApp(App):
         self.main_layout.add_widget(self.transparent_button_layout)
 
         self.mos_pos = ()
-        self.memory_count = 240
+        self.memory_count = 8
 
         # Generate previews for all memories and cache them (if not done already)
         generate_image_previews()
@@ -141,29 +141,65 @@ class TheLabApp(App):
 
         memory_thumbnail_folder = os.path.dirname(os.path.abspath(__file__)) + "//Memory_Thumbnails"
 
+        for i in range((self.grid_layer_one.cols * self.grid_layer_one.rows) - self.memory_count):
+            self.grid_layer_one.add_widget(SpacerWidget())
+            self.transparent_button_layout.add_widget(SpacerWidget())
+
         for i in range(self.memory_count):
             if len(os.listdir(memory_thumbnail_folder)) > i:
                 image_dir = memory_thumbnail_folder + "//" + os.listdir(memory_thumbnail_folder)[i]
                 image = Image.open(image_dir)
                 image = image_to_texture(image)
             else:
-                print("no images found...")
-                image = None
+                print("no more images found...")
                 return
+
+            # Tags to sort the images by
+            tags = ['Happiness', 'Sadness', 'Fear', 'Disgust', 'Anger', 'Surprise']
+            tag_indices_to_use = (0, 1)
+            tags_to_use = (tags[tag_indices_to_use[0]], tags[tag_indices_to_use[1]])
+            tags.pop(tag_indices_to_use[0])
+            tags.pop(tag_indices_to_use[1] - 1)
+
+            # Accessing the full_res variant of the image for the NN
+            image_name = os.listdir(memory_thumbnail_folder)[i]
+            full_res_image = Image.open(os.path.dirname(os.path.abspath(__file__)) + "//Full_Res_Memories" + "//" + image_name)
+
+            image_pos = list(plot_image(full_res_image, tags_to_use, tags))
+            image_pos = (1 - image_pos[0], 1 - image_pos[1])  # Reverses direction
+            index = self.index_by_pos(image_pos)
 
             circle_widget = CircleWidget(circle_size=0.05, circle_image=image)
             with self.grid_layer_one.canvas.after:
-                self.grid_layer_one.add_widget(circle_widget, i)
-            image_name = os.listdir(memory_thumbnail_folder)[i]
-            new_var = image_name
-            circle_button = Button(background_color=(1, 0, 0, 0), on_press=lambda x, y=new_var: self.make_circle_full_screen(y))
-            self.transparent_button_layout.add_widget(circle_button, i)
+                self.grid_layer_one.add_widget(circle_widget, index)
+            circle_button = Button(background_color=(1, 0, 0, 0), on_press=lambda x, y=image_name: self.make_circle_full_screen(y))
+            self.transparent_button_layout.add_widget(circle_button, index)
+
+    def index_by_pos(self, pos):
+        number_of_columns = self.grid_layer_one.cols
+        number_of_rows = self.grid_layer_one.rows
+        x, y = pos
+
+        index = math.floor(y * number_of_rows) * 6 + math.floor(x * number_of_columns) + 1
+
+        '''
+        cols = self.grid_layer_one.cols
+        rows = self.grid_layer_one.rows
+        x, y = pos
+        current_row_count = round(x * cols)
+        index = round(max((y*rows)-1, 0)*cols) + current_row_count  # Cover the area not in current row
+        print(index)
+        '''
+        return int(index)
 
     def set_circle_scale(self, layout):
         biggest_circle = None
         biggest_radius = 0
 
         for circle in layout.children:
+            if not isinstance(circle, CircleWidget):
+                continue
+
             widget_pos = get_widget_position(circle)
 
             distance_to_circle = math.dist(widget_pos, self.mos_pos)
@@ -208,6 +244,29 @@ class TheLabApp(App):
         for widget in self.main_layout.children:
             if isinstance(widget, KivyImage):
                 self.main_layout.remove_widget(widget)
+
+
+def plot_image(image, xy_params, additional_tags):
+    import torch
+    import clip
+
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    model, preprocess = clip.load("ViT-L/14@336px", device=device)
+
+    image = preprocess(image).unsqueeze(0).to(device)
+    text = clip.tokenize(list(xy_params) + list(additional_tags)).to(device)
+
+    with torch.no_grad():
+        '''
+        image_features = model.encode_image(image)
+        text_features = model.encode_text(text)
+        '''
+
+        logits_per_image, logits_per_text = model(image, text)
+        probs = logits_per_image.softmax(dim=-1).cpu().numpy()
+
+    print("Label probs:", probs[0, :2])
+    return probs[0, :2]
 
 
 if __name__ == '__main__':
