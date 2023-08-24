@@ -176,20 +176,12 @@ class TheLabApp(App):
             self.transparent_button_layout.add_widget(circle_button, index)
 
     def index_by_pos(self, pos):
-        number_of_columns = self.grid_layer_one.cols
-        number_of_rows = self.grid_layer_one.rows
-        x, y = pos
-
-        index = math.floor(y * number_of_rows) * 6 + math.floor(x * number_of_columns) + 1
-
-        '''
         cols = self.grid_layer_one.cols
         rows = self.grid_layer_one.rows
         x, y = pos
         current_row_count = round(x * cols)
         index = round(max((y*rows)-1, 0)*cols) + current_row_count  # Cover the area not in current row
         print(index)
-        '''
         return int(index)
 
     def set_circle_scale(self, layout):
