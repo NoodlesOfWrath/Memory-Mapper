@@ -1,28 +1,23 @@
-import copy
-import random
-
-import keyboard
-from kivy.app import App
-from kivy.uix.gridlayout import GridLayout
-from kivy.uix.boxlayout import BoxLayout
-from kivy.uix.floatlayout import FloatLayout
-from kivy.uix.stencilview import StencilView
-from kivy.animation import Animation
+from Memory import CircleWidget, ExpandableBarLayout
 from kivy.uix.relativelayout import RelativeLayout
-from kivy.uix.button import Button
+from kivy.core.image import Image as CoreImage
 from kivy.uix.image import Image as KivyImage
-from kivy.uix.widget import Widget
-from kivy.uix.label import Label
-from kivy.graphics import Ellipse
+from kivy.uix.gridlayout import GridLayout
 from kivy.core.window import Window
-from kivy.clock import Clock
+from kivy.uix.widget import Widget
+from kivy.uix.button import Button
 from kivy.config import Config
+from kivy.clock import Clock
+from kivy.app import App
+from io import BytesIO
+from PIL import Image
+import keyboard
+import pickle
+import torch
+import kivy
+import clip
 import math
 import os
-import kivy
-from kivy.core.image import Image as CoreImage
-from PIL import Image
-from io import BytesIO
 
 
 def get_widget_position(widget):
@@ -51,41 +46,6 @@ def generate_image_previews():
             image = Image.open(full_res_images_dir + "//" + image_name)
             image.thumbnail(thumbnail_size, Image.Resampling.LANCZOS)
             image.save(thumbnail_file_dir, "JPEG")
-
-
-class CircleWidget(Widget):
-
-    def __init__(self, text='', label_color=(0, 0, 0, 1), circle_color=(0, 0, 0, 0), circle_size=1, circle_image=[None],
-                 **kwargs):
-        super(CircleWidget, self).__init__(**kwargs)
-
-        # Define circle_size as an instance variable
-        self.circle_size = circle_size
-
-        with self.canvas:
-            if circle_image is None:
-                # Set the position and size of the circle here
-                self.circle = Ellipse(pos=self.pos, size=(50 * circle_size, 50 * circle_size), color=circle_color)
-            else:
-                self.circle = Ellipse(pos=self.pos, size=(50 * circle_size, 50 * circle_size), color=circle_color,
-                                      texture=circle_image)
-
-        self.label = Label(text=text, halign='center', valign='middle', font_size=40, color=label_color)
-        self.add_widget(self.label)
-
-    def on_size(self, *args):
-        circle_size = min(self.width, self.height)
-        circle_size = float(circle_size) * float(self.circle_size)
-        self.circle.pos = (self.center_x - circle_size / 2, self.center_y - circle_size / 2)
-        self.circle.size = (circle_size, circle_size)
-
-        self.label.size = self.size
-        self.label.text_size = self.size
-        self.label.pos = self.pos
-
-    def update_circle_size(self, new_size):
-        self.circle_size = new_size
-        self.on_size()
 
 
 class SpacerWidget(Widget):
@@ -141,9 +101,9 @@ class TheLabApp(App):
 
         memory_thumbnail_folder = os.path.dirname(os.path.abspath(__file__)) + "//Memory_Thumbnails"
 
-        for i in range((self.grid_layer_one.cols * self.grid_layer_one.rows) - self.memory_count):
-            self.grid_layer_one.add_widget(SpacerWidget())
-            self.transparent_button_layout.add_widget(SpacerWidget())
+        for i in range(self.grid_layer_one.cols * self.grid_layer_one.rows):
+            self.grid_layer_one.add_widget(ExpandableBarLayout())
+            self.transparent_button_layout.add_widget(ExpandableBarLayout())
 
         for i in range(self.memory_count):
             if len(os.listdir(memory_thumbnail_folder)) > i:
@@ -166,16 +126,19 @@ class TheLabApp(App):
             full_res_image = Image.open(
                 os.path.dirname(os.path.abspath(__file__)) + "//Full_Res_Memories" + "//" + image_name)
 
-            image_pos = list(plot_image(full_res_image, tags_to_use, tags))
+            image_pos = list(
+                plot_image(image_name=image_name, image=full_res_image, xy_params=tags_to_use, additional_tags=tags))
             image_pos = (1 - image_pos[0], 1 - image_pos[1])  # Reverses direction
             index = self.index_by_pos(image_pos)
 
             circle_widget = CircleWidget(circle_size=0.05, circle_image=image)
             with self.grid_layer_one.canvas.after:
-                self.grid_layer_one.add_widget(circle_widget, index)
+                print(f"index:{index}, and amount of children:{len(self.grid_layer_one.children)}")
+                self.grid_layer_one.children[index].add_widget(circle_widget)
+
             circle_button = Button(background_color=(1, 0, 0, 0),
                                    on_press=lambda x, y=image_name: self.make_circle_full_screen(y))
-            self.transparent_button_layout.add_widget(circle_button, index)
+            self.transparent_button_layout.children[index].add_widget(circle_button)
 
     def index_by_pos(self, pos):
         cols = self.grid_layer_one.cols
@@ -191,44 +154,50 @@ class TheLabApp(App):
         biggest_circle = None
         biggest_radius = 0
 
-        for circle in layout.children:
-            if not isinstance(circle, CircleWidget):
-                continue
+        for bar in layout.children:
+            for circle in bar.children:
+                if not isinstance(circle, CircleWidget):
+                    continue
 
-            widget_pos = get_widget_position(circle)
+                widget_pos = get_widget_position(circle)
 
-            distance_to_circle = math.dist(widget_pos, self.mos_pos)
+                distance_to_circle = math.dist(widget_pos, self.mos_pos)
 
-            window_scaling_factor = min(Window.height, Window.width) * 2
-            if window_scaling_factor == 0:
-                window_scaling_factor = 1
+                window_scaling_factor = min(Window.height, Window.width) * 2
+                if window_scaling_factor == 0:
+                    window_scaling_factor = 1
 
-            # Ensure the input value is within the specified range
-            distance_to_circle = max(window_scaling_factor / 50, min(distance_to_circle, window_scaling_factor / 2))
-            distance_to_circle /= window_scaling_factor
+                # Ensure the input value is within the specified range
+                distance_to_circle = max(window_scaling_factor / 50, min(distance_to_circle, window_scaling_factor / 2))
+                distance_to_circle /= window_scaling_factor
 
-            radius = 1 / distance_to_circle
-            radius *= 0.04
+                radius = 1 / distance_to_circle
+                radius *= 0.04
 
-            circle.update_circle_size(radius)
-            if radius > biggest_radius:
-                biggest_radius = radius
-                biggest_circle = circle
+                circle.update_circle_size(radius)
+                if radius > biggest_radius:
+                    biggest_radius = radius
+                    biggest_circle = circle
         self.move_circle_above(biggest_circle)
 
     def move_circle_above(self, circle):
-        index = circle.parent.children.index(circle)
+        bar_child_count = len(circle.parent.children)
+        bar_index = circle.parent.children.index(circle)
+        overall_index = circle.parent.parent.children.index(circle.parent)
         new_circle = CircleWidget(circle_size=circle.circle_size, circle_image=circle.circle.texture)
 
-        for child in self.grid_layer_two.children:
-            if isinstance(child, CircleWidget):
-                self.grid_layer_two.remove_widget(child)
+        for layout in self.grid_layer_two.children:
+            layout.clear_widgets()
 
         if len(self.grid_layer_two.children) == 0:
-            for i in range((self.grid_layer_one.cols * self.grid_layer_one.rows) - 1):
-                self.grid_layer_two.add_widget(SpacerWidget())
+            print('adding empties')
+            for i in range(self.grid_layer_one.cols * self.grid_layer_one.rows):
+                self.grid_layer_two.add_widget(ExpandableBarLayout())
 
-        self.grid_layer_two.add_widget(new_circle, index=index)
+        target_bar = self.grid_layer_two.children[overall_index]
+        for i in range(bar_child_count - 1):
+            target_bar.add_widget(SpacerWidget())
+        target_bar.add_widget(new_circle, index=bar_index)
 
     def make_circle_full_screen(self, image_name):
         if not self.fullscreen:
@@ -246,16 +215,18 @@ class TheLabApp(App):
                 self.main_layout.remove_widget(widget)
 
 
-def plot_image(image, xy_params, additional_tags):
-    import torch
-    import clip
+def plot_image(image_name, image, xy_params, additional_tags):
+    params = list(xy_params)
+    params.extend(list(additional_tags))
+
+    loaded_probs = load_memory_probabilities(name=image_name, tags=params)
+    if loaded_probs is not None:
+        return loaded_probs[:2]
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model, preprocess = clip.load("ViT-L/14@336px", device=device)
 
     image = preprocess(image).unsqueeze(0).to(device)
-    params = list(xy_params)
-    params.extend(list(additional_tags))
     text = clip.tokenize(params).to(device)
 
     with torch.no_grad():
@@ -267,8 +238,33 @@ def plot_image(image, xy_params, additional_tags):
         logits_per_image, logits_per_text = model(image, text)
         probs = logits_per_image.softmax(dim=-1).cpu().numpy()
 
-    print("Label probs:", probs[0, :2])
+    save_memory_probabilities(name=image_name, tags=params, probabilities=probs[0])
     return probs[0, :2]
+
+
+def load_memory_probabilities(name, tags):
+    tags = tuple(tags)
+    file_name = 'cache//' + name + '.pickle'
+
+    if not os.path.isfile(file_name) or os.path.getsize(file_name) <= 0:
+        return
+
+    with open(file_name, 'rb') as f:
+        memory_dict = pickle.load(f)
+        if tags in memory_dict:
+            print('successfully loaded...')
+            return memory_dict[tags]
+
+
+def save_memory_probabilities(name, tags, probabilities):
+    file_name = 'cache//' + name + '.pickle'
+    memory_dict = {tuple(tags): tuple(probabilities)}
+
+    if not os.path.isfile(file_name):
+        open(file_name, 'x')
+
+    with open(file_name, 'wb') as f:
+        pickle.dump(memory_dict, f, pickle.HIGHEST_PROTOCOL)
 
 
 if __name__ == '__main__':
