@@ -55,7 +55,7 @@ def generate_image_previews():
 
 class CircleWidget(Widget):
 
-    def __init__(self, text='', label_color=(0, 0, 0, 1), circle_color=(0, 0, 0, 0), circle_size=1, circle_image=None,
+    def __init__(self, text='', label_color=(0, 0, 0, 1), circle_color=(0, 0, 0, 0), circle_size=1, circle_image=[None],
                  **kwargs):
         super(CircleWidget, self).__init__(**kwargs)
 
@@ -112,7 +112,7 @@ class TheLabApp(App):
         self.main_layout.add_widget(self.transparent_button_layout)
 
         self.mos_pos = ()
-        self.memory_count = 8
+        self.memory_count = 10
 
         # Generate previews for all memories and cache them (if not done already)
         generate_image_previews()
@@ -163,7 +163,8 @@ class TheLabApp(App):
 
             # Accessing the full_res variant of the image for the NN
             image_name = os.listdir(memory_thumbnail_folder)[i]
-            full_res_image = Image.open(os.path.dirname(os.path.abspath(__file__)) + "//Full_Res_Memories" + "//" + image_name)
+            full_res_image = Image.open(
+                os.path.dirname(os.path.abspath(__file__)) + "//Full_Res_Memories" + "//" + image_name)
 
             image_pos = list(plot_image(full_res_image, tags_to_use, tags))
             image_pos = (1 - image_pos[0], 1 - image_pos[1])  # Reverses direction
@@ -172,15 +173,17 @@ class TheLabApp(App):
             circle_widget = CircleWidget(circle_size=0.05, circle_image=image)
             with self.grid_layer_one.canvas.after:
                 self.grid_layer_one.add_widget(circle_widget, index)
-            circle_button = Button(background_color=(1, 0, 0, 0), on_press=lambda x, y=image_name: self.make_circle_full_screen(y))
+            circle_button = Button(background_color=(1, 0, 0, 0),
+                                   on_press=lambda x, y=image_name: self.make_circle_full_screen(y))
             self.transparent_button_layout.add_widget(circle_button, index)
 
     def index_by_pos(self, pos):
         cols = self.grid_layer_one.cols
         rows = self.grid_layer_one.rows
+        print(rows, cols)
         x, y = pos
-        current_row_count = round(x * cols)
-        index = round(max((y*rows)-1, 0)*cols) + current_row_count  # Cover the area not in current row
+        current_row_count = math.floor(x * cols)
+        index = (max((math.floor(y * rows)) - 1, 0) * cols) + current_row_count  # Cover the area not in current row
         print(index)
         return int(index)
 
@@ -196,15 +199,17 @@ class TheLabApp(App):
 
             distance_to_circle = math.dist(widget_pos, self.mos_pos)
 
-            window_scaling_factor = min(Window.height, Window.width)*2
+            window_scaling_factor = min(Window.height, Window.width) * 2
             if window_scaling_factor == 0:
                 window_scaling_factor = 1
 
             # Ensure the input value is within the specified range
             distance_to_circle = max(window_scaling_factor / 50, min(distance_to_circle, window_scaling_factor / 2))
             distance_to_circle /= window_scaling_factor
+
             radius = 1 / distance_to_circle
             radius *= 0.04
+
             circle.update_circle_size(radius)
             if radius > biggest_radius:
                 biggest_radius = radius
@@ -214,12 +219,15 @@ class TheLabApp(App):
     def move_circle_above(self, circle):
         index = circle.parent.children.index(circle)
         new_circle = CircleWidget(circle_size=circle.circle_size, circle_image=circle.circle.texture)
+
         for child in self.grid_layer_two.children:
             if isinstance(child, CircleWidget):
                 self.grid_layer_two.remove_widget(child)
+
         if len(self.grid_layer_two.children) == 0:
             for i in range((self.grid_layer_one.cols * self.grid_layer_one.rows) - 1):
                 self.grid_layer_two.add_widget(SpacerWidget())
+
         self.grid_layer_two.add_widget(new_circle, index=index)
 
     def make_circle_full_screen(self, image_name):
@@ -246,7 +254,9 @@ def plot_image(image, xy_params, additional_tags):
     model, preprocess = clip.load("ViT-L/14@336px", device=device)
 
     image = preprocess(image).unsqueeze(0).to(device)
-    text = clip.tokenize(list(xy_params) + list(additional_tags)).to(device)
+    params = list(xy_params)
+    params.extend(list(additional_tags))
+    text = clip.tokenize(params).to(device)
 
     with torch.no_grad():
         '''
