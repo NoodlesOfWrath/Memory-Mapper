@@ -133,7 +133,6 @@ class TheLabApp(App):
 
             circle_widget = CircleWidget(circle_size=0.05, circle_image=image)
             with self.grid_layer_one.canvas.after:
-                print(f"index:{index}, and amount of children:{len(self.grid_layer_one.children)}")
                 self.grid_layer_one.children[index].add_widget(circle_widget)
 
             circle_button = Button(background_color=(1, 0, 0, 0),
@@ -143,11 +142,9 @@ class TheLabApp(App):
     def index_by_pos(self, pos):
         cols = self.grid_layer_one.cols
         rows = self.grid_layer_one.rows
-        print(rows, cols)
         x, y = pos
         current_row_count = math.floor(x * cols)
         index = (max((math.floor(y * rows)) - 1, 0) * cols) + current_row_count  # Cover the area not in current row
-        print(index)
         return int(index)
 
     def set_circle_scale(self, layout):
@@ -239,6 +236,7 @@ def plot_image(image_name, image, xy_params, additional_tags):
         probs = logits_per_image.softmax(dim=-1).cpu().numpy()
 
     save_memory_probabilities(name=image_name, tags=params, probabilities=probs[0])
+    print(f'{image_name} plotted at {probs[0, :2]}')
     return probs[0, :2]
 
 
@@ -262,6 +260,11 @@ def save_memory_probabilities(name, tags, probabilities):
 
     if not os.path.isfile(file_name):
         open(file_name, 'x')
+
+    if os.path.isfile(file_name) and os.path.getsize(file_name) > 0:
+        with open(file_name, 'rb') as f:
+            old_memory_dict = pickle.load(f)
+            memory_dict.update(old_memory_dict)
 
     with open(file_name, 'wb') as f:
         pickle.dump(memory_dict, f, pickle.HIGHEST_PROTOCOL)
