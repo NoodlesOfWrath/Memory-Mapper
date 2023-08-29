@@ -52,7 +52,7 @@ class SpacerWidget(Widget):
     pass
 
 
-class TheLabApp(App):
+class MemoryMapper(App):
 
     def build(self):
         self.fullscreen = False
@@ -128,7 +128,6 @@ class TheLabApp(App):
 
             image_pos = list(
                 plot_image(image_name=image_name, image=full_res_image, xy_params=tags_to_use, additional_tags=tags))
-            image_pos = (1 - image_pos[0], 1 - image_pos[1])  # Reverses direction
             index = self.index_by_pos(image_pos)
 
             circle_widget = CircleWidget(circle_size=0.05, circle_image=image)
@@ -143,6 +142,7 @@ class TheLabApp(App):
         cols = self.grid_layer_one.cols
         rows = self.grid_layer_one.rows
         x, y = pos
+        x = 1 - x  # reverse the x direction
         current_row_count = math.floor(x * cols)
         index = (max((math.floor(y * rows)) - 1, 0) * cols) + current_row_count  # Cover the area not in current row
         return int(index)
@@ -218,6 +218,7 @@ def plot_image(image_name, image, xy_params, additional_tags):
 
     loaded_probs = load_memory_probabilities(name=image_name, tags=params)
     if loaded_probs is not None:
+        print(f'{image_name} plotted at {loaded_probs[xy_params[0]], loaded_probs[xy_params[1]]}')
         return loaded_probs[xy_params[0]], loaded_probs[xy_params[1]]
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -278,4 +279,4 @@ def save_memory_probabilities(name, tags, probabilities):
 
 
 if __name__ == '__main__':
-    TheLabApp().run()
+    MemoryMapper().run()
