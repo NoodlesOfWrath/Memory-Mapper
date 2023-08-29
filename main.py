@@ -218,7 +218,7 @@ def plot_image(image_name, image, xy_params, additional_tags):
 
     loaded_probs = load_memory_probabilities(name=image_name, tags=params)
     if loaded_probs is not None:
-        return loaded_probs[:2]
+        return loaded_probs[xy_params[0]], loaded_probs[xy_params[1]]
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model, preprocess = clip.load("ViT-L/14@336px", device=device)
@@ -241,7 +241,7 @@ def plot_image(image_name, image, xy_params, additional_tags):
 
 
 def load_memory_probabilities(name, tags):
-    tags = tuple(tags)
+    tags = tuple(sorted(tags))  # Sort so that order doesn't matter
     file_name = 'cache//' + name + '.pickle'
 
     if not os.path.isfile(file_name) or os.path.getsize(file_name) <= 0:
@@ -251,12 +251,19 @@ def load_memory_probabilities(name, tags):
         memory_dict = pickle.load(f)
         if tags in memory_dict:
             print('successfully loaded...')
-            return memory_dict[tags]
+            return dict(zip(tags, memory_dict[tags]))
 
 
 def save_memory_probabilities(name, tags, probabilities):
     file_name = 'cache//' + name + '.pickle'
-    memory_dict = {tuple(tags): tuple(probabilities)}
+
+    # Sort so that order doesn't matter when loading it later
+    tag_probabilities = dict(zip(tags, probabilities))
+    tags = tuple(sorted(tags))
+    tag_probabilities = {tag: tag_probabilities[tag] for tag in tags}
+    probabilities = tuple(tag_probabilities.values())
+
+    memory_dict = {tags: tuple(probabilities)}
 
     if not os.path.isfile(file_name):
         open(file_name, 'x')
