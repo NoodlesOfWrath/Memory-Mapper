@@ -24,6 +24,7 @@ import kivy
 import clip
 import math
 import os
+from watchpoints import watch
 
 
 def get_widget_position(widget):
@@ -61,7 +62,7 @@ class SpacerWidget(Widget):
 class MemoryMapper(App):
 
     def build(self):
-        self.fullscreen = False
+        self.image_fullscreen = False
 
         # Disables esc exiting the program
         Config.set('kivy', 'exit_on_escape', '0')
@@ -78,7 +79,6 @@ class MemoryMapper(App):
         self.main_grid_layout.add_widget(self.grid_layer_two)
         self.transparent_button_layout = GridLayout(cols=cols, rows=rows, spacing=spacing)
         self.main_grid_layout.add_widget(self.transparent_button_layout)
-        self.label_layout = FloatLayout()
 
         self.main_layout.add_widget(self.main_grid_layout)
 
@@ -91,7 +91,7 @@ class MemoryMapper(App):
         self.main_layout.add_widget(graph_layout)
 
         self.mos_pos = ()
-        self.memory_count = 10
+        self.memory_count = 40
 
         # Generate previews for all memories and cache them (if not done already)
         generate_image_previews()
@@ -102,10 +102,13 @@ class MemoryMapper(App):
         return self.main_layout
 
     def update(self, *args):
-        if not self.fullscreen:
+        if not self.image_fullscreen:
             self.update_mouse_pos()
             self.set_circle_scale(self.grid_layer_one)
-        if keyboard.is_pressed('esc') & self.fullscreen:
+            if self.debug_bar.size_hint != [2, 2]:
+                print(self.debug_bar.size_hint)
+
+        if keyboard.is_pressed('esc') & self.image_fullscreen:
             self.escape_full_screen_image()
 
     def update_mouse_pos(self, *args):
@@ -121,7 +124,10 @@ class MemoryMapper(App):
         memory_thumbnail_folder = os.path.dirname(os.path.abspath(__file__)) + "//Memory_Thumbnails"
 
         for i in range(self.grid_layer_one.cols * self.grid_layer_one.rows):
-            self.grid_layer_one.add_widget(ExpandableBarLayout())
+            bar = ExpandableBarLayout()
+            bar.size_hint = 1, 1
+            print(f'size hint:{bar.size_hint_x}')
+            self.grid_layer_one.add_widget(bar)
             self.transparent_button_layout.add_widget(ExpandableBarLayout())
 
         for i in range(self.memory_count):
@@ -154,6 +160,13 @@ class MemoryMapper(App):
             circle_widget = CircleWidget(circle_size=0.05, circle_image=image)
             with self.grid_layer_one.canvas.after:
                 self.grid_layer_one.children[index].add_widget(circle_widget)
+                # self.grid_layer_one.children[index].size_hint_x += 1
+                # self.grid_layer_one.children[index].size_hint_y += 1
+                # self.grid_layer_one.center_x -= 1
+                # self.grid_layer_one.center_y -= 1
+            if i == 5:
+                self.debug_bar = self.grid_layer_one.children[index]
+                print('watching...')
 
             circle_button = Button(background_color=(1, 0, 0, 0),
                                    on_press=lambda x, y=image_name: self.make_circle_full_screen(y))
@@ -185,14 +198,19 @@ class MemoryMapper(App):
                 if window_scaling_factor == 0:
                     window_scaling_factor = 1
 
+                falloff_factor = 1 + (len(circle.parent.children) / 10)
+                distance_to_circle **= falloff_factor
+
                 # Ensure the input value is within the specified range
                 distance_to_circle = max(window_scaling_factor / 50, min(distance_to_circle, window_scaling_factor / 2))
                 distance_to_circle /= window_scaling_factor
 
                 radius = 1 / distance_to_circle
-                radius *= 0.04
+                radius *= 0.03
 
-                circle.update_circle_size(radius)
+                adjusted_radius = radius * len(circle.parent.children)  # adjusts for scaling in bar layouts
+
+                circle.update_circle_size(adjusted_radius)
                 if radius > biggest_radius:
                     biggest_radius = radius
                     biggest_circle = circle
@@ -218,16 +236,16 @@ class MemoryMapper(App):
         target_bar.add_widget(new_circle, index=bar_index)
 
     def make_circle_full_screen(self, image_name):
-        if not self.fullscreen:
+        if not self.image_fullscreen:
             self.escape_full_screen_image()
-            self.fullscreen = True
+            self.image_fullscreen = True
             full_res_images_dir = os.path.dirname(os.path.abspath(__file__)) + "//Full_Res_Memories"
             image_dir = full_res_images_dir + "//" + image_name
             image_widget = KivyImage(source=image_dir, fit_mode="contain")
             self.main_layout.add_widget(image_widget)
 
     def escape_full_screen_image(self):
-        self.fullscreen = False
+        self.image_fullscreen = False
         for widget in self.main_layout.children:
             if isinstance(widget, KivyImage):
                 self.main_layout.remove_widget(widget)

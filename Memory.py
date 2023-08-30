@@ -5,9 +5,9 @@ from kivy.uix.boxlayout import BoxLayout
 
 
 class ExpandableBarLayout(BoxLayout):
-    
+
     def __init__(self, widgets=[], **kwargs):
-        super(ExpandableBarLayout, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self.widgets = widgets
         self.redraw_widgets()
 
@@ -20,24 +20,34 @@ class ExpandableBarLayout(BoxLayout):
             else:
                 self.on_hover_exit()
 
-    def redraw_widgets(self):
-        with self.canvas:
-            self.expandable_bar = BoxLayout(orientation='horizontal')
-            if len(self.widgets) > 0:
-                self.expandable_bar.add_widget(self.widgets[0])
+    def on_size(self, *args):
+        self.redraw_widgets()
 
-    # def add_widget(self, widget, *args, **kwargs):
-    #    self.widgets.append(widget)
+    def on_motion(self, etype, me):
+        self.redraw_widgets()
+
+    def redraw_widgets(self):
+        print('redrawing...')
+        # self.size_hint = 2, 2
+        num_widgets = len(self.widgets)
+        if num_widgets == 0:
+            return
+
+        for i, widget in enumerate(self.children):
+            distance = abs(int(len(self.children) / 2) - i)
+            if distance > 1:
+                opacity = 0
+            elif distance > 0:
+                opacity = 0.5
+            else:
+                opacity = 1
+            widget.opacity = opacity
 
     def on_hover_enter(self):
-        for widget in self.widgets[1:]:
-            self.expandable_bar.add_widget(widget)
-        print(f'children count:{self.children}')
+        print('entered hover')
 
     def on_hover_exit(self):
-        if self.expandable_bar.children > 1:
-            for widget in self.expandable_bar.children[1:]:
-                self.expandable_bar.remove_widget(widget)
+        print('entered hover')
 
 
 class CircleWidget(Widget):
