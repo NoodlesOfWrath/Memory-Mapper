@@ -1,4 +1,3 @@
-from Memory import CircleWidget, ExpandableBarLayout
 from kivy.uix.relativelayout import RelativeLayout
 from kivy.uix.anchorlayout import AnchorLayout
 from kivy.core.image import Image as CoreImage
@@ -12,6 +11,7 @@ from kivy.core.window import Window
 from kivy.uix.widget import Widget
 from kivy.uix.button import Button
 from kivy.uix.label import Label
+from Memory import CircleWidget
 from kivy.config import Config
 from kivy.clock import Clock
 from kivy.app import App
@@ -24,12 +24,11 @@ import kivy
 import clip
 import math
 import os
-from watchpoints import watch
 
 
 def get_widget_position(widget):
     # Get the center position of the widget within the layout
-    widget_pos = widget.parent.parent.parent.to_parent(widget.center_x, widget.center_y)
+    widget_pos = widget.parent.parent.to_parent(widget.center_x, widget.center_y)
     return widget_pos
 
 
@@ -68,22 +67,19 @@ class MemoryMapper(App):
         Config.set('kivy', 'exit_on_escape', '0')
         self.main_layout = RelativeLayout()
         self.main_grid_layout = RelativeLayout(size_hint=(0.8, 0.8))  # Make room for Labels
-        self.main_grid_layout.pos_hint = {'center_x': 0.5, 'center_y': 0.5}  # Center
 
-        cols = 20
-        rows = 12
-        spacing = 10
-        self.grid_layer_one = GridLayout(cols=cols, rows=rows, spacing=spacing)
+        self.grid_layer_one = FloatLayout()
+        self.grid_layer_one.pos_hint = {'center_x': 0.1, 'center_y': 0.1}  # Center
         self.main_grid_layout.add_widget(self.grid_layer_one)
-        self.grid_layer_two = GridLayout(cols=cols, rows=rows, spacing=spacing)
-        self.main_grid_layout.add_widget(self.grid_layer_two)
-        self.transparent_button_layout = GridLayout(cols=cols, rows=rows, spacing=spacing)
+        self.transparent_button_layout = FloatLayout()
+        self.transparent_button_layout.pos_hint = {'center_x': 0.59, 'center_y': 0.59}  # Center
         self.main_grid_layout.add_widget(self.transparent_button_layout)
 
         self.main_layout.add_widget(self.main_grid_layout)
 
         # Add labels to the graph
-        self.x_label = Label(text='Top Label', size_hint=(None, None), height=50, pos_hint={'top': 1, 'center_x': 0.5})
+        self.x_label = Label(text='Top Label', size_hint=(None, None), height=50,
+                             pos_hint={'bottom': 0, 'center_x': 0.5})
         self.main_layout.add_widget(self.x_label)
         graph_layout = AnchorLayout(anchor_x='left', anchor_y='center')
         self.y_label = RotatedLabelWidget()
@@ -105,8 +101,6 @@ class MemoryMapper(App):
         if not self.image_fullscreen:
             self.update_mouse_pos()
             self.set_circle_scale(self.grid_layer_one)
-            if self.debug_bar.size_hint != [2, 2]:
-                print(self.debug_bar.size_hint)
 
         if keyboard.is_pressed('esc') & self.image_fullscreen:
             self.escape_full_screen_image()
@@ -122,13 +116,6 @@ class MemoryMapper(App):
         self.grid_layer_one.clear_widgets()
 
         memory_thumbnail_folder = os.path.dirname(os.path.abspath(__file__)) + "//Memory_Thumbnails"
-
-        for i in range(self.grid_layer_one.cols * self.grid_layer_one.rows):
-            bar = ExpandableBarLayout()
-            bar.size_hint = 1, 1
-            print(f'size hint:{bar.size_hint_x}')
-            self.grid_layer_one.add_widget(bar)
-            self.transparent_button_layout.add_widget(ExpandableBarLayout())
 
         for i in range(self.memory_count):
             if len(os.listdir(memory_thumbnail_folder)) > i:
@@ -155,85 +142,56 @@ class MemoryMapper(App):
 
             image_pos = list(
                 plot_image(image_name=image_name, image=full_res_image, xy_params=tags_to_use, additional_tags=tags))
-            index = self.index_by_pos(image_pos)
+            image_pos = [float(image_pos[0]), float(image_pos[1])]
+            print(image_pos)
 
             circle_widget = CircleWidget(circle_size=0.05, circle_image=image)
             with self.grid_layer_one.canvas.after:
-                self.grid_layer_one.children[index].add_widget(circle_widget)
-                # self.grid_layer_one.children[index].size_hint_x += 1
-                # self.grid_layer_one.children[index].size_hint_y += 1
-                # self.grid_layer_one.center_x -= 1
-                # self.grid_layer_one.center_y -= 1
-            if i == 5:
-                self.debug_bar = self.grid_layer_one.children[index]
-                print('watching...')
+                self.grid_layer_one.add_widget(circle_widget)
+                circle_widget.pos_hint = {'x': image_pos[0], 'y': image_pos[1]}
 
             circle_button = Button(background_color=(1, 0, 0, 0),
                                    on_press=lambda x, y=image_name: self.make_circle_full_screen(y))
-            self.transparent_button_layout.children[index].add_widget(circle_button)
-
-    def index_by_pos(self, pos):
-        cols = self.grid_layer_one.cols
-        rows = self.grid_layer_one.rows
-        x, y = pos
-        x = 1 - x  # reverse the x direction
-        current_row_count = math.floor(x * cols)
-        index = (max((math.floor(y * rows)) - 1, 0) * cols) + current_row_count  # Cover the area not in current row
-        return int(index)
+            circle_button.size_hint = 0.03, 0.03
+            self.transparent_button_layout.add_widget(circle_button)
+            circle_button.pos_hint = {'x': image_pos[0], 'y': image_pos[1]}
 
     def set_circle_scale(self, layout):
         biggest_circle = None
         biggest_radius = 0
 
-        for bar in layout.children:
-            for circle in bar.children:
-                if not isinstance(circle, CircleWidget):
-                    continue
+        for circle in layout.children:
+            widget_pos = get_widget_position(circle)
 
-                widget_pos = get_widget_position(circle)
+            distance_to_circle = math.dist(widget_pos, self.mos_pos)
 
-                distance_to_circle = math.dist(widget_pos, self.mos_pos)
+            window_scaling_factor = min(Window.height, Window.width) * 2
+            if window_scaling_factor == 0:
+                window_scaling_factor = 1
 
-                window_scaling_factor = min(Window.height, Window.width) * 2
-                if window_scaling_factor == 0:
-                    window_scaling_factor = 1
+            falloff_factor = 1.5
+            distance_to_circle **= falloff_factor
 
-                falloff_factor = 1 + (len(circle.parent.children) / 10)
-                distance_to_circle **= falloff_factor
+            # Ensure the input value is within the specified range
+            minimum_radius, maximum_radius = 5, 50
+            distance_to_circle = max(window_scaling_factor / maximum_radius,
+                                     min(distance_to_circle, window_scaling_factor / minimum_radius))
+            distance_to_circle /= window_scaling_factor
 
-                # Ensure the input value is within the specified range
-                distance_to_circle = max(window_scaling_factor / 50, min(distance_to_circle, window_scaling_factor / 2))
-                distance_to_circle /= window_scaling_factor
+            radius = 1 / distance_to_circle
+            radius *= 0.003
 
-                radius = 1 / distance_to_circle
-                radius *= 0.03
-
-                adjusted_radius = radius * len(circle.parent.children)  # adjusts for scaling in bar layouts
-
-                circle.update_circle_size(adjusted_radius)
-                if radius > biggest_radius:
-                    biggest_radius = radius
-                    biggest_circle = circle
+            circle.update_circle_size(radius)
+            if radius > biggest_radius:
+                biggest_radius = radius
+                biggest_circle = circle
         self.move_circle_above(biggest_circle)
 
     def move_circle_above(self, circle):
-        bar_child_count = len(circle.parent.children)
-        bar_index = circle.parent.children.index(circle)
-        overall_index = circle.parent.parent.children.index(circle.parent)
-        new_circle = CircleWidget(circle_size=circle.circle_size, circle_image=circle.circle.texture)
-
-        for layout in self.grid_layer_two.children:
-            layout.clear_widgets()
-
-        if len(self.grid_layer_two.children) == 0:
-            print('adding empties')
-            for i in range(self.grid_layer_one.cols * self.grid_layer_one.rows):
-                self.grid_layer_two.add_widget(ExpandableBarLayout())
-
-        target_bar = self.grid_layer_two.children[overall_index]
-        for i in range(bar_child_count - 1):
-            target_bar.add_widget(SpacerWidget())
-        target_bar.add_widget(new_circle, index=bar_index)
+        index = circle.parent.children.index(circle)
+        if index != 0:
+            self.grid_layer_one.remove_widget(circle)
+            self.grid_layer_one.add_widget(circle)
 
     def make_circle_full_screen(self, image_name):
         if not self.image_fullscreen:
@@ -267,11 +225,6 @@ def plot_image(image_name, image, xy_params, additional_tags):
     text = clip.tokenize(params).to(device)
 
     with torch.no_grad():
-        '''
-        image_features = model.encode_image(image)
-        text_features = model.encode_text(text)
-        '''
-
         logits_per_image, logits_per_text = model(image, text)
         probs = logits_per_image.softmax(dim=-1).cpu().numpy()
 
