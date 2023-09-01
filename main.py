@@ -89,19 +89,19 @@ class MemoryMapper(App):
         # Add buttons to open a popup to edit the labels
         label_button_layout = RelativeLayout()
         self.x_label_button = Button(background_color=(0, 0, 0, 0), on_press=lambda x: EditablePopup(title='x label',
-                                                                                                     apply_callback=lambda new_text: self.x_label.setter('text')(self.x_label, new_text),
-                                                                                                     initial_text=self.x_label.text).open(), size_hint=(None, None),
-                                     size=(Window.width/2, 40), pos_hint={'y': 0, 'center_x': 0.5})
+                                    apply_callback=lambda new_text: self.x_label.setter('text')(self.x_label, new_text),
+                                    initial_text=self.x_label.text).open(), size_hint=(None, None),
+                                    size=(Window.width/2, 40), pos_hint={'y': 0, 'center_x': 0.5})
         self.y_label_button = Button(background_color=(0, 0, 0, 0), on_press=lambda x: EditablePopup(title='y label',
-                                                                                                     apply_callback=lambda new_text:
-                                                                                                     self.y_label.label.setter('text')(self.y_label.label, new_text),
-                                                                                                     initial_text=self.y_label.label.text).open(), size_hint=(None, None),
-                                     size=(40, Window.width/2), pos_hint={'center_y': 0.5, 'x': 0})
+                                    apply_callback=lambda new_text:
+                                    self.y_label.label.setter('text')(self.y_label.label, new_text),
+                                    initial_text=self.y_label.label.text).open(), size_hint=(None, None),
+                                    size=(40, Window.width/2), pos_hint={'center_y': 0.5, 'x': 0})
         # Add one for the additional tags at the top
         self.additional_tags_button = Button(background_color=(0, 0, 0, 0), on_press=lambda x: EditablePopup(title='additional tags',
-                                                                                                             apply_callback=lambda new_text: self.additional_tags_label.setter('text')(self.additional_tags_label, new_text),
-                                                                                                             initial_text=self.additional_tags_label.text).open(), size_hint=(None, None), size=(Window.width/2, 40),
-                                             pos_hint={'top': 1, 'center_x': 0.5})
+                                            apply_callback=lambda new_text: self.additional_tags_label.setter('text')(self.additional_tags_label, new_text),
+                                            initial_text=self.additional_tags_label.text).open(), size_hint=(None, None), size=(Window.width/2, 40),
+                                            pos_hint={'top': 1, 'center_x': 0.5})
 
         # Add buttons to layout
         label_button_layout.add_widget(self.x_label_button)
@@ -112,7 +112,10 @@ class MemoryMapper(App):
         self.main_layout.add_widget(y_label_layout)
 
         self.mos_pos = ()
-        self.memory_count = 40
+        self.memory_count = 100
+        memories_available = len(os.listdir(os.path.dirname(os.path.abspath(__file__)) + '//Full_Res_Memories'))
+        if memories_available > self.memory_count:
+            self.memory_count = memories_available
 
         # Generate previews for all memories and cache them (if not done already)
         generate_image_previews()
@@ -174,7 +177,6 @@ class MemoryMapper(App):
             image_pos = list(
                 plot_image(image_name=image_name, image=full_res_image, xy_params=tags_to_use, additional_tags=self.additional_tags))
             image_pos = [float(image_pos[0]), float(image_pos[1])]
-            print(image_pos)
 
             circle_widget = CircleWidget(circle_size=0.05, circle_image=image)
             with self.grid_layer_one.canvas.after:
@@ -274,7 +276,6 @@ def load_memory_probabilities(name, tags):
     with open(file_name, 'rb') as f:
         memory_dict = pickle.load(f)
         if tags in memory_dict:
-            print('successfully loaded...')
             return dict(zip(tags, memory_dict[tags]))
 
 

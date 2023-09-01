@@ -36,6 +36,7 @@ class EditablePopup(Popup):
     def __init__(self, apply_callback, initial_text, title, **kwargs):
         super().__init__(**kwargs)
 
+        self.size_hint = 0.6, 0.6
         self.title = title
         self.apply_callback = apply_callback
 
