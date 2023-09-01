@@ -3,10 +3,8 @@ from kivy.uix.anchorlayout import AnchorLayout
 from kivy.core.image import Image as CoreImage
 from kivy.uix.image import Image as KivyImage
 from kivy.uix.floatlayout import FloatLayout
-from kivy.uix.gridlayout import GridLayout
-from kivy.uix.boxlayout import BoxLayout
-from kivy.graphics import Color, Line
-from Graph import RotatedLabelWidget
+from kivy.uix.textinput import TextInput
+from Graph import RotatedLabelWidget, EditablePopup
 from kivy.core.window import Window
 from kivy.uix.widget import Widget
 from kivy.uix.button import Button
@@ -78,13 +76,32 @@ class MemoryMapper(App):
         self.main_layout.add_widget(self.main_grid_layout)
 
         # Add labels to the graph
-        self.x_label = Label(text='Top Label', size_hint=(None, None), height=50,
-                             pos_hint={'bottom': 0, 'center_x': 0.5})
+        self.x_label = Label(text='Happiness', size_hint=(None, None), height=50, pos_hint={'bottom': 0, 'center_x': 0.5})
         self.main_layout.add_widget(self.x_label)
-        graph_layout = AnchorLayout(anchor_x='left', anchor_y='center')
+
+        y_label_layout = AnchorLayout(anchor_x='left', anchor_y='center')
         self.y_label = RotatedLabelWidget()
-        graph_layout.add_widget(self.y_label)
-        self.main_layout.add_widget(graph_layout)
+        self.y_label.label.text = 'Sadness'
+        y_label_layout.add_widget(self.y_label)
+
+        # Add buttons to open a popup to edit the labels
+        label_button_layout = RelativeLayout()
+        self.x_label_button = Button(background_color=(0, 0, 0, 0), on_press=lambda x: EditablePopup(title='x label',
+                                    apply_callback=lambda new_text: self.x_label.setter('text')(self.x_label, new_text),
+                                    initial_text=self.x_label.text).open(), size_hint=(None, None),
+                                    size=(Window.width/2, 40), pos_hint={'y': 0, 'center_x': 0.5})
+        self.y_label_button = Button(background_color=(0, 0, 0, 0), on_press=lambda x: EditablePopup(title='y label',
+                                    apply_callback=lambda new_text:
+                                    self.y_label.label.setter('text')(self.y_label.label, new_text),
+                                    initial_text=self.y_label.label.text).open(), size_hint=(None, None),
+                                    size=(40, Window.width/2), pos_hint={'center_y': 0.5, 'x': 0})
+
+        # Add buttons to layout
+        label_button_layout.add_widget(self.x_label_button)
+        label_button_layout.add_widget(self.y_label_button)
+
+        self.main_layout.add_widget(label_button_layout)
+        self.main_layout.add_widget(y_label_layout)
 
         self.mos_pos = ()
         self.memory_count = 40
@@ -101,6 +118,10 @@ class MemoryMapper(App):
         if not self.image_fullscreen:
             self.update_mouse_pos()
             self.set_circle_scale(self.grid_layer_one)
+
+        # When ctrl + r is pressed, redraw the circles
+        if keyboard.is_pressed('ctrl+r'):
+            self.draw_circles()
 
         if keyboard.is_pressed('esc') & self.image_fullscreen:
             self.escape_full_screen_image()
@@ -127,13 +148,12 @@ class MemoryMapper(App):
                 return
 
             # Tags to sort the images by
-            tags = ['Happiness', 'Sadness', 'Fear', 'Disgust', 'Anger', 'Surprise']
-            tag_indices_to_use = (0, 3)
-            tags_to_use = (tags[tag_indices_to_use[0]], tags[tag_indices_to_use[1]])
-            tags.pop(tag_indices_to_use[0])
-            tags.pop(tag_indices_to_use[1] - 1)
-
-            self.x_label.text, self.y_label.label.text = tags_to_use
+            tags = ['happiness', 'sadness', 'fear', 'disgust', 'anger', 'surprise']
+            tags_to_use = self.y_label.label.text.lower(), self.x_label.text.lower()
+            # Remove the tags that are being used from the list of tags if they are in it
+            for tag in tags_to_use:
+                if tag in tags:
+                    tags.remove(tag)
 
             # Accessing the full_res variant of the image for the NN
             image_name = os.listdir(memory_thumbnail_folder)[i]

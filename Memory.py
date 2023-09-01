@@ -7,7 +7,7 @@ from kivy.uix.boxlayout import BoxLayout
 class CircleWidget(Widget):
 
     def __init__(self, text='', label_color=(0, 0, 0, 1), circle_color=(0, 0, 0, 0), circle_size=1, circle_image=None,
-                 on_press = None, **kwargs):
+                 **kwargs):
         super(CircleWidget, self).__init__(**kwargs)
 
         # Define circle_size as an instance variable
