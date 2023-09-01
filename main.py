@@ -114,7 +114,7 @@ class MemoryMapper(App):
         self.mos_pos = ()
         self.memory_count = 100
         memories_available = len(os.listdir(os.path.dirname(os.path.abspath(__file__)) + '//Full_Res_Memories'))
-        if memories_available > self.memory_count:
+        if memories_available < self.memory_count:
             self.memory_count = memories_available
 
         # Generate previews for all memories and cache them (if not done already)
