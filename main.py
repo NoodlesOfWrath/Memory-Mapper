@@ -77,7 +77,9 @@ class MemoryMapper(App):
 
         # Add labels to the graph
         self.x_label = Label(text='Happiness', size_hint=(None, None), height=50, pos_hint={'bottom': 0, 'center_x': 0.5})
+        self.additional_tags_label = Label(text='happiness, sadness, fear, disgust, anger, surprise', size_hint=(None, None), height=50, pos_hint={'top': 1, 'center_x': 0.5})
         self.main_layout.add_widget(self.x_label)
+        self.main_layout.add_widget(self.additional_tags_label)
 
         y_label_layout = AnchorLayout(anchor_x='left', anchor_y='center')
         self.y_label = RotatedLabelWidget()
@@ -87,18 +89,24 @@ class MemoryMapper(App):
         # Add buttons to open a popup to edit the labels
         label_button_layout = RelativeLayout()
         self.x_label_button = Button(background_color=(0, 0, 0, 0), on_press=lambda x: EditablePopup(title='x label',
-                                    apply_callback=lambda new_text: self.x_label.setter('text')(self.x_label, new_text),
-                                    initial_text=self.x_label.text).open(), size_hint=(None, None),
-                                    size=(Window.width/2, 40), pos_hint={'y': 0, 'center_x': 0.5})
+                                                                                                     apply_callback=lambda new_text: self.x_label.setter('text')(self.x_label, new_text),
+                                                                                                     initial_text=self.x_label.text).open(), size_hint=(None, None),
+                                     size=(Window.width/2, 40), pos_hint={'y': 0, 'center_x': 0.5})
         self.y_label_button = Button(background_color=(0, 0, 0, 0), on_press=lambda x: EditablePopup(title='y label',
-                                    apply_callback=lambda new_text:
-                                    self.y_label.label.setter('text')(self.y_label.label, new_text),
-                                    initial_text=self.y_label.label.text).open(), size_hint=(None, None),
-                                    size=(40, Window.width/2), pos_hint={'center_y': 0.5, 'x': 0})
+                                                                                                     apply_callback=lambda new_text:
+                                                                                                     self.y_label.label.setter('text')(self.y_label.label, new_text),
+                                                                                                     initial_text=self.y_label.label.text).open(), size_hint=(None, None),
+                                     size=(40, Window.width/2), pos_hint={'center_y': 0.5, 'x': 0})
+        # Add one for the additional tags at the top
+        self.additional_tags_button = Button(background_color=(0, 0, 0, 0), on_press=lambda x: EditablePopup(title='additional tags',
+                                                                                                             apply_callback=lambda new_text: self.additional_tags_label.setter('text')(self.additional_tags_label, new_text),
+                                                                                                             initial_text=self.additional_tags_label.text).open(), size_hint=(None, None), size=(Window.width/2, 40),
+                                             pos_hint={'top': 1, 'center_x': 0.5})
 
         # Add buttons to layout
         label_button_layout.add_widget(self.x_label_button)
         label_button_layout.add_widget(self.y_label_button)
+        label_button_layout.add_widget(self.additional_tags_button)
 
         self.main_layout.add_widget(label_button_layout)
         self.main_layout.add_widget(y_label_layout)
@@ -148,12 +156,15 @@ class MemoryMapper(App):
                 return
 
             # Tags to sort the images by
-            tags = ['happiness', 'sadness', 'fear', 'disgust', 'anger', 'surprise']
-            tags_to_use = self.x_label.text.lower(), self.y_label.label.text.lower()
+            self.additional_tags = self.additional_tags_label.text.lower().split(',')
+            self.additional_tags = [tag.strip() for tag in self.additional_tags]
+
+            tags_to_use = self.x_label.text.lower().strip(), self.y_label.label.text.lower().strip()
+
             # Remove the tags that are being used from the list of tags if they are in it
             for tag in tags_to_use:
-                if tag in tags:
-                    tags.remove(tag)
+                if tag in self.additional_tags:
+                    self.additional_tags.remove(tag)
 
             # Accessing the full_res variant of the image for the NN
             image_name = os.listdir(memory_thumbnail_folder)[i]
@@ -161,7 +172,7 @@ class MemoryMapper(App):
                 os.path.dirname(os.path.abspath(__file__)) + "//Full_Res_Memories" + "//" + image_name)
 
             image_pos = list(
-                plot_image(image_name=image_name, image=full_res_image, xy_params=tags_to_use, additional_tags=tags))
+                plot_image(image_name=image_name, image=full_res_image, xy_params=tags_to_use, additional_tags=self.additional_tags))
             image_pos = [float(image_pos[0]), float(image_pos[1])]
             print(image_pos)
 
