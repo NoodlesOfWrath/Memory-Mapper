@@ -149,7 +149,7 @@ class MemoryMapper(App):
 
             # Tags to sort the images by
             tags = ['happiness', 'sadness', 'fear', 'disgust', 'anger', 'surprise']
-            tags_to_use = self.y_label.label.text.lower(), self.x_label.text.lower()
+            tags_to_use = self.x_label.text.lower(), self.y_label.label.text.lower()
             # Remove the tags that are being used from the list of tags if they are in it
             for tag in tags_to_use:
                 if tag in tags:
