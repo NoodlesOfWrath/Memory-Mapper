@@ -33,6 +33,8 @@ else:
 
 
 def get_widget_position(widget):
+    if widget is None:
+        return 0, 0
     # Get the center position of the widget within the layout
     widget_pos = widget.parent.parent.to_parent(widget.center_x, widget.center_y)
     return widget_pos
@@ -58,6 +60,11 @@ def generate_image_previews():
             image = Image.open(full_res_images_dir + "//" + image_name)
             image.thumbnail(thumbnail_size, Image.Resampling.LANCZOS)
             image.save(thumbnail_file_dir, "JPEG")
+    for image_name in os.listdir(thumbnail_folder):
+        # Check if the image already has a full res version
+        if image_name not in os.listdir(full_res_images_dir):
+            # Delete the image if it doesn't have a full res version
+            os.remove(thumbnail_folder + "//" + image_name)
 
 
 class SpacerWidget(Widget):
