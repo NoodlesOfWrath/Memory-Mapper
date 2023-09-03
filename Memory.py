@@ -12,6 +12,7 @@ class CircleWidget(Widget):
 
         # Define circle_size as an instance variable
         self.circle_size = circle_size
+        self.name = 'Unnamed_Memory'
 
         with self.canvas:
             if circle_image is None:

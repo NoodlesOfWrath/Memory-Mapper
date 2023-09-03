@@ -1,3 +1,5 @@
+import sys
+
 from kivy.uix.relativelayout import RelativeLayout
 from kivy.uix.anchorlayout import AnchorLayout
 from kivy.core.image import Image as CoreImage
@@ -23,6 +25,12 @@ import clip
 import math
 import os
 
+is_built = False
+if is_built:
+    current_dir = sys.executable
+else:
+    current_dir = __file__
+
 
 def get_widget_position(widget):
     # Get the center position of the widget within the layout
@@ -40,8 +48,8 @@ def image_to_texture(img):
 
 def generate_image_previews():
     thumbnail_size = (128, 128)
-    thumbnail_folder = os.path.dirname(os.path.abspath(__file__)) + "//Memory_Thumbnails"
-    full_res_images_dir = os.path.dirname(os.path.abspath(__file__)) + "//Full_Res_Memories"
+    thumbnail_folder = os.path.dirname(os.path.abspath(current_dir)) + "//Memory_Thumbnails"
+    full_res_images_dir = os.path.dirname(os.path.abspath(current_dir)) + "//Full_Res_Memories"
 
     for image_name in os.listdir(full_res_images_dir):
         thumbnail_file_dir = thumbnail_folder + "//" + image_name
@@ -112,8 +120,8 @@ class MemoryMapper(App):
         self.main_layout.add_widget(y_label_layout)
 
         self.mos_pos = ()
-        self.memory_count = 100
-        memories_available = len(os.listdir(os.path.dirname(os.path.abspath(__file__)) + '//Full_Res_Memories'))
+        self.memory_count = 20
+        memories_available = len(os.listdir(os.path.dirname(os.path.abspath(current_dir)) + '//Full_Res_Memories'))
         if memories_available < self.memory_count:
             self.memory_count = memories_available
 
@@ -146,8 +154,10 @@ class MemoryMapper(App):
 
     def draw_circles(self):
         self.grid_layer_one.clear_widgets()
+        global encoded_labels
+        encoded_labels = None
 
-        memory_thumbnail_folder = os.path.dirname(os.path.abspath(__file__)) + "//Memory_Thumbnails"
+        memory_thumbnail_folder = os.path.dirname(os.path.abspath(current_dir)) + "//Memory_Thumbnails"
 
         for i in range(self.memory_count):
             if len(os.listdir(memory_thumbnail_folder)) > i:
@@ -161,6 +171,8 @@ class MemoryMapper(App):
             # Tags to sort the images by
             self.additional_tags = self.additional_tags_label.text.lower().split(',')
             self.additional_tags = [tag.strip() for tag in self.additional_tags]
+            if self.additional_tags == ['']:
+                self.additional_tags = []
 
             tags_to_use = self.x_label.text.lower().strip(), self.y_label.label.text.lower().strip()
 
@@ -172,13 +184,14 @@ class MemoryMapper(App):
             # Accessing the full_res variant of the image for the NN
             image_name = os.listdir(memory_thumbnail_folder)[i]
             full_res_image = Image.open(
-                os.path.dirname(os.path.abspath(__file__)) + "//Full_Res_Memories" + "//" + image_name)
+                os.path.dirname(os.path.abspath(current_dir)) + "//Full_Res_Memories" + "//" + image_name)
 
             image_pos = list(
                 plot_image(image_name=image_name, image=full_res_image, xy_params=tags_to_use, additional_tags=self.additional_tags))
             image_pos = [float(image_pos[0]), float(image_pos[1])]
 
             circle_widget = CircleWidget(circle_size=0.05, circle_image=image)
+            circle_widget.name = image_name
             with self.grid_layer_one.canvas.after:
                 self.grid_layer_one.add_widget(circle_widget)
                 circle_widget.pos_hint = {'x': image_pos[0], 'y': image_pos[1]}
@@ -230,7 +243,7 @@ class MemoryMapper(App):
         if not self.image_fullscreen:
             self.escape_full_screen_image()
             self.image_fullscreen = True
-            full_res_images_dir = os.path.dirname(os.path.abspath(__file__)) + "//Full_Res_Memories"
+            full_res_images_dir = os.path.dirname(os.path.abspath(current_dir)) + "//Full_Res_Memories"
             image_dir = full_res_images_dir + "//" + image_name
             image_widget = KivyImage(source=image_dir, fit_mode="contain")
             self.main_layout.add_widget(image_widget)
@@ -242,7 +255,9 @@ class MemoryMapper(App):
                 self.main_layout.remove_widget(widget)
 
 
+encoded_labels = None
 def plot_image(image_name, image, xy_params, additional_tags):
+    global encoded_labels
     params = list(xy_params)
     params.extend(list(additional_tags))
 
@@ -255,7 +270,12 @@ def plot_image(image_name, image, xy_params, additional_tags):
     model, preprocess = clip.load("ViT-L/14@336px", device=device)
 
     image = preprocess(image).unsqueeze(0).to(device)
-    text = clip.tokenize(params).to(device)
+    if encoded_labels is None:
+        import time
+        time_start = time.time()
+        encoded_labels = clip.tokenize(params).to(device)
+        print(f'Encoding labels took {time.time() - time_start} seconds')
+    text = encoded_labels
 
     with torch.no_grad():
         logits_per_image, logits_per_text = model(image, text)
