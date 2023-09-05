@@ -2,6 +2,9 @@
 
 Memory Mapper is a Python program that uses OpenAI's CLIP model to map images based on user-defined labels. This tool helps you organize and retrieve images by associating them with descriptive labels.
 
+## Website
+- Visit the website [here](https://memorymapper.app/)
+
 ## Features
 
 - **Label-Image Mapping**: Easily associate labels with images using the power of CLIP's vision-language understanding.
